@@ -148,3 +148,85 @@ Rust membatasi mutasi langsung terhadap variabel `static` untuk menjamin **keama
    - Untuk mutasi, nilai harus dibungkus dalam tipe sinkronisasi seperti `Mutex`, `RwLock`, atau `Atomic`.
 
 #### Reflection Subscriber-2
+## 1. Eksplorasi Kode Tambahan: `src/lib.rs`
+
+Saya melakukan eksplorasi terhadap file `src/lib.rs` dan menemukan beberapa poin penting yang sangat membantu dalam memahami struktur dan mekanisme konfigurasi aplikasi ini.
+
+### Hal-Hal yang Dipelajari
+
+- **Inisialisasi Global yang Aman dan Efisien**
+  - File ini menggunakan `lazy_static!` untuk mendefinisikan objek global seperti `REQWEST_CLIENT`, sehingga bisa digunakan lintas modul tanpa harus membuat ulang.
+  
+- **Konfigurasi Aplikasi Terstruktur**
+  - Terdapat struct `AppConfig` yang memuat informasi penting seperti URL publisher dan receiver.
+  - Konfigurasi dapat diatur melalui `.env` maupun langsung dari `Rocket.toml` menggunakan `figment`, yang membuat aplikasi mudah diatur ulang tanpa mengubah kode.
+
+- **Manajemen Error yang Konsisten**
+  - Disediakan alias untuk `Result<T>` dan `Error` yang digunakan secara menyeluruh agar standar penanganan kesalahan konsisten di seluruh aplikasi.
+  - Fungsi `compose_error_response()` membantu membuat respons kesalahan API yang terstruktur dan mudah dipahami oleh klien.
+
+### Kesimpulan
+Eksplorasi ini memperluas pemahaman saya terhadap bagaimana Rust menangani dependency injection, inisialisasi global, dan konfigurasi runtime yang fleksibel.
+
+---
+
+## 2. Kemudahan Menambahkan Subscriber dan Multi-Instance melalui Observer Pattern
+
+Setelah menyelesaikan tutorial dan mencoba menjalankan beberapa instance dari Receiver secara paralel, saya menyadari betapa fleksibelnya pola Observer dalam mendukung ekspansi sistem.
+
+### Kemudahan Plug-and-Play untuk Subscriber
+
+- **Tanpa Modifikasi Kode Publisher**
+  - Publisher tidak perlu tahu siapa saja subscriber-nya. Mereka hanya mengirim notifikasi ke daftar URL yang ada.
+  
+- **Penambahan Subscriber Dinamis**
+  - Subscriber cukup mendaftarkan URL-nya dan siap menerima notifikasi.
+  - Tidak perlu restart atau recompile aplikasi publisher.
+
+- **Skalabilitas**
+  - Sangat mudah untuk menambahkan lebih banyak Receiver baik secara horizontal (banyak instance) maupun vertikal (subscriber dengan logika berbeda).
+
+### Tentang Menjalankan Lebih dari Satu Main App
+
+- **Teknisnya Bisa Dilakukan**, namun dengan beberapa catatan:
+  - Perlu memastikan bahwa masing-masing instance tidak mengganggu konfigurasi global (misalnya port yang sama).
+  - Sistem perlu disesuaikan agar setiap instance dapat menangani subset subscriber-nya sendiri atau sinkronisasi antar instance dilakukan dengan baik.
+
+### Kesimpulan
+Pola Observer membuat sistem menjadi fleksibel, loosely coupled, dan scalable. Meskipun penambahan banyak instance `Main app` mungkin memerlukan pengelolaan tambahan, dari sisi arsitektur hal ini tetap sangat mungkin dilakukan.
+
+---
+
+## 3. Pengujian dan Dokumentasi dengan Postman
+
+Saya juga melakukan eksplorasi dan penyesuaian terhadap koleksi Postman untuk meningkatkan kualitas pengujian dan dokumentasi API.
+
+### Pengalaman yang Didapat
+
+- **Penambahan Test Case**
+  - Saya menambahkan beberapa test untuk berbagai jenis status notifikasi seperti `CREATED`, `UPDATED`, dan `DELETED`.
+  - Setiap test memverifikasi respons HTTP, isi payload, dan efek samping terhadap state aplikasi (misalnya penambahan notifikasi baru).
+
+- **Peningkatan Dokumentasi**
+  - Saya mendokumentasikan struktur JSON notifikasi, penjelasan untuk setiap status, dan contoh request lengkap.
+  - Hal ini sangat membantu ketika harus menjelaskan kepada anggota tim atau melakukan debugging.
+
+- **Manfaat Fitur Environment**
+  - Saya memanfaatkan fitur Environment untuk menyimpan `baseUrl` dan token jika diperlukan, sehingga tidak perlu mengubah request satu per satu.
+
+### Nilai Praktisnya
+
+- **Meningkatkan Kepercayaan terhadap Aplikasi**
+  - Setiap perubahan bisa diuji dengan cepat dan otomatis.
+  
+- **Mempermudah Kolaborasi**
+  - Koleksi yang terdokumentasi dan bisa dibagikan mempercepat pemahaman tim terhadap API.
+
+- **Dasar untuk Continuous Integration**
+  - Tes ini bisa digunakan sebagai dasar untuk pipeline CI/CD di masa depan.
+
+---
+
+## Kesimpulan Umum
+
+Dengan eksplorasi tambahan terhadap kode dasar, eksperimen terhadap multi-subscriber dan multi-instance, serta penguatan dokumentasi Postman, saya merasa sistem ini telah menjadi fondasi kuat untuk membangun aplikasi skala lebih besar. Pola Observer terbukti memberikan fleksibilitas yang tinggi, dan praktik pengujian melalui Postman membantu menjaga kualitas serta stabilitas sistem selama dikembangkan lebih lanjut.
