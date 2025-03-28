@@ -85,5 +85,66 @@ This is the place for you to write reflections:
 ### Mandatory (Subscriber) Reflections
 
 #### Reflection Subscriber-1
+## 1. Alasan Menggunakan `RwLock<>` daripada `Mutex<>` untuk `Vec<Notification>`
+
+Dalam tutorial ini, kita menggunakan `RwLock<Vec<Notification>>` sebagai mekanisme sinkronisasi ketika menyimpan notifikasi-notifikasi yang telah diproses. Pemilihan `RwLock<>` dilakukan secara sadar untuk mengoptimalkan performa dan keselamatan data.
+
+### Mengapa Menggunakan `RwLock<>`
+
+- **Multiple Readers, Single Writer**  
+  `RwLock` memungkinkan **banyak thread membaca data secara bersamaan**, selama tidak ada thread yang sedang menulis. Ini sangat cocok ketika:
+  - Frekuensi *read* jauh lebih tinggi daripada *write*.
+  - Operasi pembacaan tidak seharusnya menghalangi thread lain membaca data yang sama.
+
+- **Efisiensi Tinggi dalam Operasi Baca**  
+  Dibanding `Mutex`, `RwLock` memberikan **kinerja lebih baik** untuk data yang sering dibaca. Ini sangat penting dalam sistem seperti notifikasi yang lebih sering ditampilkan atau dilihat dibandingkan ditulis ulang.
+
+- **Pengendalian Akses Lebih Detail**  
+  Dengan memisahkan akses baca dan tulis (`read()` dan `write()`), kita memiliki **kontrol eksplisit** terhadap kapan data dapat dimodifikasi.
+
+### Mengapa Tidak Menggunakan `Mutex<>`
+
+- **Mutex Mengunci Penuh**  
+  `Mutex` hanya mengizinkan satu thread untuk mengakses data, baik untuk membaca maupun menulis. Ini menyebabkan:
+  - **Blocking tidak perlu** pada operasi baca sederhana.
+  - Kinerja menurun jika banyak thread ingin membaca.
+
+- **Kurang Efisien untuk Skema Read-Heavy**  
+  Pada sistem yang dominan operasi baca, penggunaan `Mutex` akan menghambat skalabilitas karena seluruh akses diblokir meskipun hanya membaca.
+
+### Kesimpulan
+
+`RwLock<>` dipilih karena:
+- Lebih efisien untuk workload yang dominan baca.
+- Memberikan kontrol akses yang sesuai dengan kebutuhan sinkronisasi notifikasi.
+- Menjaga performa dan tetap aman untuk penggunaan multi-threaded.
+
+---
+
+## 2. Mengapa Rust Tidak Mengizinkan Mutasi Langsung pada Variabel `static`
+
+Rust membatasi mutasi langsung terhadap variabel `static` untuk menjamin **keamanan memori dan thread safety**, yang merupakan prinsip utama dari bahasa ini.
+
+### Perbedaan Pendekatan Rust dan Java
+
+| Aspek                  | Rust                                   | Java                                 |
+|------------------------|----------------------------------------|--------------------------------------|
+| Mutasi Variabel Static | Harus dibungkus dengan `Mutex`/`RwLock` | Bebas dilakukan dalam metode statis  |
+| Thread Safety          | Dijamin secara eksplisit                | Harus diatur manual oleh developer   |
+| Konkurensi             | Dicegah jika tidak aman                 | Rentan race condition tanpa kontrol  |
+
+### Alasan Rust Membatasi Mutasi Langsung
+
+1. **Keamanan Thread**
+   - Variabel `static` yang dapat dimutasi secara bebas akan membuka potensi *data race*.
+   - Rust menghindari kondisi ini dengan **memaksa penggunaan alat sinkronisasi eksplisit**, seperti `Mutex` atau `RwLock`.
+
+2. **Desain Bahasa yang Aman**
+   - Rust menekankan **safety-first programming**.
+   - Setiap modifikasi state global harus dipikirkan secara eksplisit dan aman.
+
+3. **Solusi: lazy_static + Synchronization**
+   - Rust menyediakan makro `lazy_static!` atau crate `once_cell` untuk menginisialisasi variabel statis secara aman.
+   - Untuk mutasi, nilai harus dibungkus dalam tipe sinkronisasi seperti `Mutex`, `RwLock`, atau `Atomic`.
 
 #### Reflection Subscriber-2
